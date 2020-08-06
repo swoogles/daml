@@ -13,10 +13,10 @@ import com.daml.lf.data.Ref._
 import com.daml.lf.data._
 import com.daml.lf.language.Ast._
 import com.daml.lf.language.Util._
-import com.daml.lf.transaction.Node
 import com.daml.lf.transaction.{
   GlobalKey,
   GlobalKeyWithMaintainers,
+  Node,
   NodeId,
   SubmittedTransaction,
   GenTransaction => GenTx,
@@ -1621,6 +1621,45 @@ class EngineTest extends WordSpec with Matchers with EitherValues with BazelRunf
       err.msg should include("precondition violation")
     }
   }
+
+  "Engine#validate" should {
+    val let = Time.Timestamp.Epoch
+    val command = CreateCommand(
+      TypeConName(basicTestsPkgId, "BasicTests:WithKey"),
+      ValueRecord(
+        Some(BasicTests_WithKey),
+        ImmArray(
+          (Some[FieldName]("p"), ValueParty(alice)),
+          (Some[FieldName]("k"), ValueInt64(42))
+        ))
+    )
+
+    "accept transaction with duplicate contract key :S " in {
+      val submission = engine
+        .submit(
+          Commands(
+            party,
+            ImmArray(command, command),
+            let,
+            "test"
+          ),
+          participant,
+          crypto.Hash.hashPrivateKey("contract key")
+        )
+        .consume(_ => None, lookupPackage, _ => None)
+
+      submission shouldBe 'right
+
+      val Right((tx, metaData)) = submission
+
+      val result = engine
+        .validate(tx, let, participant, metaData.submissionTime, metaData.submissionSeed.get)
+        .consume(_ => None, lookupPackage, _ => None)
+      result shouldBe 'right
+    }
+
+  }
+
 }
 
 object EngineTest {
