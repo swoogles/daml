@@ -141,7 +141,7 @@ private[lf] object TransactionVersions
 
   private[lf] def assignVersions(
       supportedTxVersions: VersionRange[TransactionVersion],
-      as: Seq[SpecifiedVersion],
+      as: SpecifiedVersion*,
   ): Either[String, TransactionVersion] = {
 
     val transactionVersion =
@@ -172,7 +172,7 @@ private[lf] object TransactionVersions
     val langVersions: Iterator[SpecifiedVersion] =
       roots.reverseIterator.map(nid => pkgLangVersions(nodes(nid).templateId.packageId))
 
-    assignVersions(supportedTxVersions, langVersions.toList).map { txVersion =>
+    assignVersions(supportedTxVersions, langVersions.toList: _*).map { txVersion =>
       val versionNode: UnversionedNode => VersionedNode =
         Node.GenNode.map3(identity, identity, VersionedValue(assignValueVersion(txVersion), _))
       VersionedTransaction(
@@ -181,5 +181,4 @@ private[lf] object TransactionVersions
       )
     }
   }
-
 }

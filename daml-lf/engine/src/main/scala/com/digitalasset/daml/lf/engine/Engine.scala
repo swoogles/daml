@@ -11,10 +11,12 @@ import com.daml.lf.language.Ast._
 import com.daml.lf.speedy.{InitialSeeding, PartialTransaction, Pretty, SExpr}
 import com.daml.lf.speedy.Speedy.Machine
 import com.daml.lf.speedy.SResult._
-import com.daml.lf.transaction.{NodeId, SubmittedTransaction, Transaction => Tx}
+import com.daml.lf.transaction.{NodeId, SubmittedTransaction, Transaction, TransactionVersions}
 import com.daml.lf.transaction.Node._
-import com.daml.lf.value.Value
+import com.daml.lf.value.{Value, ValueVersion}
 import java.nio.file.Files
+
+import com.daml.lf.transaction.VersionTimeline.SpecifiedVersion
 
 /**
   * Allows for evaluating [[Commands]] and validating [[Transaction]]s.
@@ -93,7 +95,7 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
       cmds: Commands,
       participantId: ParticipantId,
       submissionSeed: crypto.Hash,
-  ): Result[(SubmittedTransaction, Tx.Metadata)] = {
+  ): Result[(SubmittedTransaction, Transaction.Metadata)] = {
     val submissionTime = cmds.ledgerEffectiveTime
     preprocessor
       .preprocessCommands(cmds.commands)
@@ -136,7 +138,7 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
     * The value of [[nodeSeed]] does not matter for other kind of nodes.
     *
     * The reinterpretation does not recompute the package dependencies, so the field `usedPackages` in the
-    * `Tx.MetaData` component of the output is always set to `empty`.
+    * `Transaction.MetaData` component of the output is always set to `empty`.
     */
   def reinterpret(
       submitters: Set[Party],
@@ -144,7 +146,7 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
       nodeSeed: Option[crypto.Hash],
       submissionTime: Time.Timestamp,
       ledgerEffectiveTime: Time.Timestamp,
-  ): Result[(SubmittedTransaction, Tx.Metadata)] =
+  ): Result[(SubmittedTransaction, Transaction.Metadata)] =
     for {
       commandWithCids <- preprocessor.translateNode(node)
       (command, globalCids) = commandWithCids
@@ -167,7 +169,7 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
       participantId: Ref.ParticipantId,
       submissionTime: Time.Timestamp,
       submissionSeed: crypto.Hash,
-  ): Result[(SubmittedTransaction, Tx.Metadata)] = {
+  ): Result[(SubmittedTransaction, Transaction.Metadata)] = {
     import scalaz.std.option._
     import scalaz.syntax.traverse.ToTraverseOps
 
@@ -291,7 +293,7 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
       submissionTime: Time.Timestamp,
       seeding: speedy.InitialSeeding,
       globalCids: Set[Value.ContractId],
-  ): Result[(SubmittedTransaction, Tx.Metadata)] =
+  ): Result[(SubmittedTransaction, Transaction.Metadata)] =
     runSafely(
       loadPackages(commands.foldLeft(Set.empty[PackageId])(_ + _.templateId.packageId).toList)
     ) {
@@ -315,7 +317,7 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
   private[engine] def interpretLoop(
       machine: Machine,
       time: Time.Timestamp
-  ): Result[(SubmittedTransaction, Tx.Metadata)] = {
+  ): Result[(SubmittedTransaction, Transaction.Metadata)] = {
     var finished: Boolean = false
     while (!finished) {
       machine.run() match {
@@ -380,7 +382,7 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
       compiledPackages.packageLanguageVersion,
     ) match {
       case PartialTransaction.CompleteTransaction(tx) =>
-        val meta = Tx.Metadata(
+        val meta = Transaction.Metadata(
           submissionSeed = None,
           submissionTime = machine.ptx.submissionTime,
           usedPackages = Set.empty,
@@ -421,6 +423,17 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
   def preloadPackage(pkgId: PackageId, pkg: Package): Result[Unit] =
     compiledPackages.addPackage(pkgId, pkg)
 
+  private[lf] def assignValueVersion(
+      rootTemplateIds: Ref.TypeConName*): Either[String, ValueVersion] = {
+    import com.daml.lf.transaction.VersionTimeline.Implicits._
+    val txVersion = TransactionVersions.assignVersions(
+      config.allowedOutputTransactionVersions,
+      rootTemplateIds.map(id =>
+        compiledPackages.packageLanguageVersion(id.packageId): SpecifiedVersion): _*
+    )
+    txVersion.map(TransactionVersions.assignValueVersion)
+  }
+
 }
 
 object Engine {
@@ -433,7 +446,7 @@ object Engine {
     InitialSeeding.TransactionSeed(
       crypto.Hash.deriveTransactionSeed(submissionSeed, participant, submissionTime))
 
-  private def profileDesc(tx: Tx.Transaction): String = {
+  private def profileDesc(tx: Transaction.Transaction): String = {
     if (tx.roots.length == 1) {
       val makeDesc = (kind: String, tmpl: Ref.Identifier, extra: Option[String]) =>
         s"$kind:${tmpl.qualifiedName.name}${extra.map(extra => s":$extra").getOrElse("")}"
