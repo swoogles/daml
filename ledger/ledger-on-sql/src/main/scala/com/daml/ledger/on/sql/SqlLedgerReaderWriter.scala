@@ -58,11 +58,12 @@ final class SqlLedgerReaderWriter(
         RangeSource(
           (startExclusive, endInclusive) =>
             Source
-              .future(
-                Timed.value(metrics.daml.ledger.log.read, database.inReadTransaction("read_log") {
+              .future(Timed
+                .value(metrics.daml.ledger.log.read, database.inReadTransaction("read_log") {
                   queries =>
                     Future.fromTry(queries.selectFromLog(startExclusive, endInclusive))
-                }))
+                })
+                .removeExecutionContext)
               .mapConcat(identity)
               .mapMaterializedValue(_ => NotUsed)),
       )
