@@ -20,7 +20,9 @@ import com.daml.ledger.participant.state.index.v2.{
   LedgerEndService
 }
 import com.daml.ledger.participant.state.v1.{SubmissionId, SubmissionResult, WritePackagesService}
+import com.daml.lf.VersionRange
 import com.daml.lf.archive.{Dar, DarReader, Decode}
+import com.daml.lf.language.LanguageVersion
 import com.daml.lf.validation.Validation
 import com.daml.logging.{ContextualizedLogger, LoggingContext}
 import com.daml.platform.api.grpc.GrpcApiService
@@ -39,6 +41,7 @@ private[apiserver] final class ApiPackageManagementService private (
     transactionsService: IndexTransactionsService,
     packagesWrite: WritePackagesService,
     materializer: Materializer,
+    allowedLanguageVersions: VersionRange[LanguageVersion],
 )(implicit loggingContext: LoggingContext)
     extends PackageManagementService
     with GrpcApiService {
@@ -86,7 +89,7 @@ private[apiserver] final class ApiPackageManagementService private (
     for {
       dar <- darReader.readArchive("package-upload", stream)
       packages <- Try(dar.all.iterator.map(Decode.decodeArchive).toMap)
-      _ <- Validation.checkPackages(packages).toTry
+      _ <- Validation.checkPackages(packages, allowedLanguageVersions).toTry
     } yield dar
 
   override def uploadDarFile(request: UploadDarFileRequest): Future[UploadDarFileResponse] = {
@@ -122,9 +125,16 @@ private[apiserver] object ApiPackageManagementService {
       readBackend: IndexPackagesService,
       transactionsService: IndexTransactionsService,
       writeBackend: WritePackagesService,
+      allowedLanguageVersions: VersionRange[LanguageVersion],
   )(implicit mat: Materializer, loggingContext: LoggingContext)
     : PackageManagementServiceGrpc.PackageManagementService with GrpcApiService =
-    new ApiPackageManagementService(readBackend, transactionsService, writeBackend, mat)
+    new ApiPackageManagementService(
+      readBackend,
+      transactionsService,
+      writeBackend,
+      mat,
+      allowedLanguageVersions,
+    )
 
   private final class SynchronousResponseStrategy(
       ledgerEndService: LedgerEndService,

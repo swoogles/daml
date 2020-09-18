@@ -248,7 +248,12 @@ private[daml] object ApiServices {
 
         val apiPackageManagementService =
           ApiPackageManagementService
-            .createApiService(indexService, transactionsService, writeService)
+            .createApiService(
+              indexService,
+              transactionsService,
+              writeService,
+              engine.config.allowedLanguageVersions,
+            )
 
         val apiConfigManagementService =
           ApiConfigManagementService

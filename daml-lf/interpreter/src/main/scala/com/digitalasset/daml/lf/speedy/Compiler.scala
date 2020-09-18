@@ -50,7 +50,7 @@ private[lf] object Compiler {
   final case class FullPackageValidation(allowedLanguageVersion: VersionRange[LanguageVersion])
       extends PackageValidationMode
 
-  private[lf] case class Config(
+  case class Config(
       packageValidation: PackageValidationMode,
       profiling: ProfilingMode,
       stacktracing: StackTraceMode,
@@ -62,6 +62,12 @@ private[lf] object Compiler {
       profiling = NoProfile,
       stacktracing = NoStackTrace,
     )
+    val Dev = Config(
+      packageValidation = FullPackageValidation(VersionTimeline.devLanguageVersions),
+      profiling = NoProfile,
+      stacktracing = NoStackTrace,
+    )
+
   }
 
   private val SEGetTime = SEBuiltin(SBGetTime)

@@ -184,10 +184,18 @@ object VersionTimeline {
       max = LanguageVersion(LMV.V1, "8"),
     )
 
+  private[lf] val devLanguageVersions =
+    stableLanguageVersions.copy(max = LanguageVersion(LMV.V1, Dev))
+
   private[lf] val stableTransactionVersions =
     VersionRange(
       min = TransactionVersion("10"),
-      max = TransactionVersion("11")
+      max = TransactionVersion("10")
+    )
+
+  private[lf] val devTransactionVersions =
+    stableTransactionVersions.copy(
+      max = TransactionVersions.acceptedVersions.last
     )
 
 }
