@@ -3,6 +3,7 @@
 
 package com.daml.lf.validation
 
+import com.daml.lf.VersionRange
 import com.daml.lf.data.ImmArray
 import com.daml.lf.data.Ref._
 import com.daml.lf.language.Ast._
@@ -370,6 +371,8 @@ final case class ECollision(
     s"collision between ${entity1.pretty} and ${entity2.pretty}"
 }
 
+/* Language Versions */
+
 final case class EModuleVersionDependencies(
     pkgId: PackageId,
     pkgLangVersion: LanguageVersion,
@@ -385,4 +388,19 @@ final case class EModuleVersionDependencies(
     s"package $pkgId using version $pkgLangVersion depends on package $depPkgId using newer version $dependencyLangVersion"
 
   override def context: Context = NoContext
+}
+
+final case class EDisallowedLanguageVersion(
+    pkgId: PackageId,
+    pkgLangVersion: LanguageVersion,
+    allowedLangVersions: VersionRange[LanguageVersion],
+) extends ValidationError {
+
+  assert(!allowedLangVersions.contains(pkgLangVersion))
+
+  override def prettyInternal: String =
+    s"package $pkgId use a the disallowed language version $pkgLangVersion"
+
+  override def context: Context = NoContext
+
 }

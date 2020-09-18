@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
 import java.util.zip.ZipEntry
 
+import com.daml.lf.VersionRange
 import com.daml.lf.data.Ref
 import com.daml.lf.language.{Ast, LanguageMajorVersion, LanguageVersion}
 import com.daml.lf.testing.parser.{ParserParameters, parseModules}
@@ -52,6 +53,11 @@ private[daml] object DamlLfEncoder extends App {
   private def readSources(files: Seq[String]): String =
     files.flatMap(file => Source.fromFile(Paths.get(file).toFile, "UTF8"))(breakOut)
 
+  private val allowedLangVersions = VersionRange(
+    LanguageVersion(LanguageVersion.Major.V1, LanguageVersion.Minor.Stable("0")),
+    LanguageVersion(LanguageVersion.Major.V1, LanguageVersion.Minor.Dev),
+  )
+
   private def makeArchive(source: String)(
       implicit parserParameters: ParserParameters[this.type]) = {
 
@@ -72,7 +78,10 @@ private[daml] object DamlLfEncoder extends App {
           Ast.Package(modules, Set.empty[Ref.PackageId], parserParameters.languageVersion, metadata)
       )
 
-    Validation.checkPackage(pkgs, pkgId).left.foreach(e => error(e.pretty))
+    Validation
+      .checkPackage(pkgs, pkgId, allowedLangVersions)
+      .left
+      .foreach(e => error(e.pretty))
 
     encodeArchive(pkgId -> pkgs(pkgId), parserParameters.languageVersion)
   }

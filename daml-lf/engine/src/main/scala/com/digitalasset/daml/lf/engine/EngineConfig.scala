@@ -7,7 +7,7 @@ package engine
 import java.nio.file.Path
 
 import com.daml.lf.language.{LanguageVersion => LV}
-import com.daml.lf.transaction.{TransactionVersions, TransactionVersion => TV}
+import com.daml.lf.transaction.{TransactionVersions, VersionTimeline, TransactionVersion => TV}
 
 final case class EngineConfig(
     allowedLanguageVersions: VersionRange[LV],
@@ -46,12 +46,9 @@ object EngineConfig {
 
   // recommended configuration
   val Stable: EngineConfig = new EngineConfig(
-    allowedLanguageVersions = VersionRange(
-      LV(LV.Major.V1, LV.Minor.Stable("6")),
-      LV(LV.Major.V1, LV.Minor.Stable("8")),
-    ),
-    allowedInputTransactionVersions = VersionRange(TV("10"), TV("10")),
-    allowedOutputTransactionVersions = VersionRange(TV("10"), TV("10"))
+    allowedLanguageVersions = VersionTimeline.stableLanguageVersions,
+    allowedInputTransactionVersions = VersionTimeline.stableTransactionVersions,
+    allowedOutputTransactionVersions = VersionTimeline.stableTransactionVersions,
   )
 
   // development configuration, should not be used in PROD.

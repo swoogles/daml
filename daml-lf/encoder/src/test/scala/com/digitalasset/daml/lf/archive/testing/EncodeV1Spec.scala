@@ -3,6 +3,7 @@
 
 package com.daml.lf.testing.archive
 
+import com.daml.lf.VersionRange
 import com.daml.lf.archive.Decode
 import com.daml.lf.archive.testing.Encode
 import com.daml.lf.data.Ref._
@@ -205,9 +206,14 @@ object EncodeV1Spec {
     normalizer.apply(pkg)
   }
 
+  private val allowedLangVersions = VersionRange(
+    LanguageVersion(LanguageVersion.Major.V1, LanguageVersion.Minor.Stable("0")),
+    LanguageVersion(LanguageVersion.Major.V1, LanguageVersion.Minor.Dev),
+  )
+
   private def validate(pkgId: PackageId, pkg: Package): Unit =
     Validation
-      .checkPackage(Map(pkgId -> pkg), pkgId)
+      .checkPackage(Map(pkgId -> pkg), pkgId, allowedLangVersions)
       .left
       .foreach(e => sys.error(e.toString))
 

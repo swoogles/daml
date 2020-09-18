@@ -7,10 +7,12 @@ package speedy
 import com.daml.lf.data.Ref._
 import com.daml.lf.data.{ImmArray, Numeric, Struct, Time}
 import com.daml.lf.language.Ast._
+import com.daml.lf.language.LanguageVersion
 import com.daml.lf.speedy.SBuiltin._
 import com.daml.lf.speedy.SExpr._
 import com.daml.lf.speedy.SValue._
 import com.daml.lf.speedy.Anf.flattenToAnf
+import com.daml.lf.transaction.VersionTimeline
 import com.daml.lf.validation.{EUnknownDefinition, LEPackage, Validation, ValidationError}
 import org.slf4j.LoggerFactory
 
@@ -45,7 +47,8 @@ private[lf] object Compiler {
 
   sealed abstract class PackageValidationMode extends Product with Serializable
   case object NoPackageValidation extends PackageValidationMode
-  case object FullPackageValidation extends PackageValidationMode
+  final case class FullPackageValidation(allowedLanguageVersion: VersionRange[LanguageVersion])
+      extends PackageValidationMode
 
   private[lf] case class Config(
       packageValidation: PackageValidationMode,
@@ -55,7 +58,7 @@ private[lf] object Compiler {
 
   object Config {
     val Default = Config(
-      packageValidation = FullPackageValidation,
+      packageValidation = FullPackageValidation(VersionTimeline.stableLanguageVersions),
       profiling = NoProfile,
       stacktracing = NoStackTrace,
     )
@@ -252,16 +255,15 @@ private[lf] final class Compiler(
   @throws[ValidationError]
   def unsafeCompilePackage(
       pkgId: PackageId,
-      packageValidationMode: PackageValidationMode = FullPackageValidation,
   ): Iterable[(SDefinitionRef, SExpr)] = {
     logger.trace(s"compilePackage: Compiling $pkgId...")
 
     val t0 = Time.Timestamp.now()
 
-    packageValidationMode match {
+    config.packageValidation match {
       case Compiler.NoPackageValidation =>
-      case Compiler.FullPackageValidation =>
-        Validation.checkPackage(packages, pkgId).left.foreach {
+      case Compiler.FullPackageValidation(allowedLanguageVersions) =>
+        Validation.checkPackage(packages, pkgId, allowedLanguageVersions).left.foreach {
           case EUnknownDefinition(_, LEPackage(pkgId_)) =>
             logger.trace(s"compilePackage: Missing $pkgId_, requesting it...")
             throw PackageNotFound(pkgId_)

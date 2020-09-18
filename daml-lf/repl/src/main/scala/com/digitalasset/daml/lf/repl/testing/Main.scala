@@ -22,6 +22,7 @@ import java.io.{File, PrintWriter, StringWriter}
 import java.nio.file.{Path, Paths}
 import java.io.PrintStream
 
+import com.daml.lf.transaction.VersionTimeline
 import org.jline.builtins.Completers
 import org.jline.reader.{History, LineReader, LineReaderBuilder}
 import org.jline.reader.impl.completer.{AggregateCompleter, ArgumentCompleter, StringsCompleter}
@@ -150,15 +151,17 @@ object Repl {
     load(file, devMode) fMap cmdValidate
 
   def cmdValidate(state: State): (Boolean, State) = {
-    val (validationResults, validationTime) = time(
-      state.packages.keys.map(Validation.checkPackage(state.packages, _)))
+    val (validationResults, validationTime) =
+      time(Validation.checkPackages(state.packages, VersionTimeline.stableLanguageVersions))
     System.err.println(s"${state.packages.size} package(s) validated in $validationTime ms.")
-    validationResults collectFirst {
-      case Left(e) =>
-        println(s"Context: ${e.context}")
-        println(s"Error: ${e.getStackTrace.mkString("\n")}")
+    validationResults match {
+      case Left(err) =>
+        println(s"Context: ${err.context}")
+        println(s"Error: ${err.getStackTrace.mkString("\n")}")
         false -> state
-    } getOrElse true -> state
+      case Right(_) =>
+        true -> state
+    }
   }
 
   // --------------------------------------------------------

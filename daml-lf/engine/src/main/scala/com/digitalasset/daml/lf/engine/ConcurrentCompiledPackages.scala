@@ -9,7 +9,6 @@ import java.util.concurrent.ConcurrentHashMap
 import com.daml.lf.data.Ref.PackageId
 import com.daml.lf.engine.ConcurrentCompiledPackages.AddPackageState
 import com.daml.lf.language.Ast.Package
-import com.daml.lf.language.LanguageVersion
 import com.daml.lf.speedy.Compiler
 
 import scala.collection.JavaConverters._
@@ -18,13 +17,8 @@ import scala.collection.concurrent.{Map => ConcurrentMap}
 /** Thread-safe class that can be used when you need to maintain a shared, mutable collection of
   * packages.
   */
-private[lf] final class ConcurrentCompiledPackages(
-    allowedLanguageVersions: VersionRange[LanguageVersion],
-    compilerConfig: Compiler.Config,
-) extends MutableCompiledPackages(
-      allowedLanguageVersions: VersionRange[LanguageVersion],
-      compilerConfig,
-    ) {
+private[lf] final class ConcurrentCompiledPackages(compilerConfig: Compiler.Config)
+    extends MutableCompiledPackages(compilerConfig) {
   private[this] val _packages: ConcurrentMap[PackageId, Package] =
     new ConcurrentHashMap().asScala
   private[this] val _defns: ConcurrentHashMap[speedy.SExpr.SDefinitionRef, speedy.SExpr] =
@@ -41,7 +35,7 @@ private[lf] final class ConcurrentCompiledPackages(
     * Note that when resuming from a [[Result]] the continuation will modify the
     * [[ConcurrentCompiledPackages]] that originated it.
     */
-  override protected def addPackageInternal(pkgId: PackageId, pkg: Package): Result[Unit] =
+  override def addPackage(pkgId: PackageId, pkg: Package): Result[Unit] =
     addPackageInternal(
       AddPackageState(
         packages = Map(pkgId -> pkg),
@@ -127,14 +121,8 @@ private[lf] final class ConcurrentCompiledPackages(
 }
 
 object ConcurrentCompiledPackages {
-  def apply(
-      allowedLanguageVersions: VersionRange[LanguageVersion],
-      compilerConfig: Compiler.Config = Compiler.Config.Default,
-  ): ConcurrentCompiledPackages =
-    new ConcurrentCompiledPackages(
-      allowedLanguageVersions,
-      compilerConfig,
-    )
+  def apply(compilerConfig: Compiler.Config = Compiler.Config.Default): ConcurrentCompiledPackages =
+    new ConcurrentCompiledPackages(compilerConfig)
 
   private case class AddPackageState(
       packages: Map[PackageId, Package], // the packages we're currently compiling

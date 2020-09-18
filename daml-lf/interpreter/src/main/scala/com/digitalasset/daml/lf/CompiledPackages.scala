@@ -12,9 +12,7 @@ import com.daml.lf.speedy.{Compiler, SExpr}
 /** Trait to abstract over a collection holding onto DAML-LF package definitions + the
   * compiled speedy expressions.
   */
-private[lf] abstract class CompiledPackages(
-    compilerConfig: Compiler.Config,
-) {
+private[lf] abstract class CompiledPackages(compilerConfig: Compiler.Config) {
   def getPackage(pkgId: PackageId): Option[Package]
   def getDefinition(dref: SDefinitionRef): Option[SExpr]
 

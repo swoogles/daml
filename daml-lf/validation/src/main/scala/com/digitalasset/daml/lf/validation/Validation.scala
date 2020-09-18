@@ -3,8 +3,11 @@
 
 package com.daml.lf.validation
 
+import com.daml.lf.VersionRange
 import com.daml.lf.data.Ref.{ModuleName, PackageId}
 import com.daml.lf.language.Ast.{Module, Package}
+import com.daml.lf.language.LanguageVersion
+import com.daml.lf.transaction.VersionTimeline
 
 object Validation {
 
@@ -15,26 +18,35 @@ object Validation {
       case e: ValidationError => Left(e)
     }
 
-  def checkPackages(pkgs: Map[PackageId, Package]): Either[ValidationError, Unit] =
+  def checkPackages(
+      pkgs: Map[PackageId, Package],
+      allowedLangVersions: VersionRange[LanguageVersion],
+  ): Either[ValidationError, Unit] =
     runSafely {
       val world = new World(pkgs)
-      pkgs.foreach { case (pkgId, pkg) => unsafeCheckPackage(world, pkgId, pkg) }
+      pkgs.foreach {
+        case (pkgId, pkg) => unsafeCheckPackage(world, allowedLangVersions, pkgId, pkg)
+      }
     }
 
   def checkPackage(
       pkgs: PartialFunction[PackageId, Package],
-      pkgId: PackageId
+      pkgId: PackageId,
+      allowedLangVersions: VersionRange[LanguageVersion] = VersionTimeline.stableLanguageVersions,
   ): Either[ValidationError, Unit] =
     runSafely {
       val world = new World(pkgs)
-      unsafeCheckPackage(world, pkgId, world.lookupPackage(NoContext, pkgId))
+      unsafeCheckPackage(world, allowedLangVersions, pkgId, world.lookupPackage(NoContext, pkgId))
     }
 
   private def unsafeCheckPackage(
       world: World,
+      allowedLangVersions: VersionRange[LanguageVersion],
       pkgId: PackageId,
-      pkg: Package
+      pkg: Package,
   ): Unit = {
+    if (!allowedLangVersions.contains(pkg.languageVersion))
+      throw EDisallowedLanguageVersion(pkgId, pkg.languageVersion, allowedLangVersions)
     Collision.checkPackage(pkgId, pkg)
     Recursion.checkPackage(pkgId, pkg)
     DependencyVersion.checkPackage(world, pkgId, pkg)

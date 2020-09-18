@@ -50,21 +50,23 @@ class Engine(val config: EngineConfig = EngineConfig.Stable) {
 
   config.profileDir.foreach(Files.createDirectories(_))
 
-  private[this] val compiledPackages =
-    ConcurrentCompiledPackages(
-      config.allowedLanguageVersions,
-      speedy.Compiler.Config(
-        packageValidation =
-          if (config.packageValidation) speedy.Compiler.FullPackageValidation
-          else speedy.Compiler.NoPackageValidation,
-        stacktracing =
-          if (config.stackTraceMode) speedy.Compiler.FullStackTrace
-          else speedy.Compiler.NoStackTrace,
-        profiling =
-          if (config.profileDir.isDefined) speedy.Compiler.FullProfile
-          else speedy.Compiler.NoProfile,
-      )
+  private[engine] val compilerConfig =
+    speedy.Compiler.Config(
+      packageValidation =
+        if (config.packageValidation)
+          speedy.Compiler.FullPackageValidation(config.allowedLanguageVersions)
+        else
+          speedy.Compiler.NoPackageValidation,
+      stacktracing =
+        if (config.stackTraceMode) speedy.Compiler.FullStackTrace
+        else speedy.Compiler.NoStackTrace,
+      profiling =
+        if (config.profileDir.isDefined) speedy.Compiler.FullProfile
+        else speedy.Compiler.NoProfile,
     )
+
+  private[this] val compiledPackages =
+    ConcurrentCompiledPackages(compilerConfig)
 
   private[this] val preprocessor = new preprocessing.Preprocessor(compiledPackages)
 
