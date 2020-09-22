@@ -21,7 +21,7 @@ import com.daml.ledger.participant.state.kvutils.api.{
   LedgerRecord,
   LedgerWriter
 }
-import com.daml.ledger.participant.state.kvutils.{Bytes, OffsetBuilder}
+import com.daml.ledger.participant.state.kvutils.{Bytes, OffsetBuilder, PackageValidationMode}
 import com.daml.ledger.participant.state.v1._
 import com.daml.ledger.validator.LedgerStateOperations.{Key, Value}
 import com.daml.ledger.validator._
@@ -110,6 +110,7 @@ object SqlLedgerReaderWriter {
           engine = engine,
           metrics = metrics,
           inStaticTimeMode = timeProvider != TimeProvider.UTC,
+          packageValidation = PackageValidationMode.NoValidation,
         )
         committer = new ValidatingCommitter[Index](
           () => timeProvider.getCurrentTime,

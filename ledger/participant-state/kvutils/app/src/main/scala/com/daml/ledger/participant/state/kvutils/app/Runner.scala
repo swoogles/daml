@@ -10,10 +10,11 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import com.daml.daml_lf_dev.DamlLf.Archive
+import com.daml.ledger.participant.state.kvutils.PackageValidationMode
 import com.daml.ledger.participant.state.v1.metrics.{TimedReadService, TimedWriteService}
 import com.daml.ledger.participant.state.v1.{SubmissionId, WritePackagesService}
 import com.daml.lf.archive.DarReader
-import com.daml.lf.engine.Engine
+import com.daml.lf.engine.{Engine, EngineConfig}
 import com.daml.logging.{ContextualizedLogger, LoggingContext}
 import com.daml.logging.LoggingContext.newLoggingContext
 import com.daml.metrics.JvmMetricSet
@@ -78,11 +79,15 @@ final class Runner[T <: ReadWriteService, Extra](
       "[^A-Za-z0-9_\\-]".r.replaceAllIn(name.toLowerCase, "-"))
     implicit val materializer: Materializer = Materializer(actorSystem)
 
-    // share engine between the kvutils committer backend and the ledger api server
-    // this avoids duplicate compilation of packages as well as keeping them in memory twice
     // FIXME: https://github.com/digital-asset/daml/issues/5164
     // This should be made configurable
-    val sharedEngine = Engine.DevEngine()
+    // We disable package validation before compilation because package are validated
+    // before committed to the ledger (See [[PackageCommitter#validateEntry]
+    val engineConfig = EngineConfig.Dev.copy(
+      packageValidation = config.packageValidation == PackageValidationMode.Postcommit)
+    // share engine between the kvutils committer backend and the ledger api server
+    // this avoids duplicate compilation of packages as well as keeping them in memory twice
+    val sharedEngine = new Engine(engineConfig)
 
     newLoggingContext { implicit loggingContext =>
       for {

@@ -10,7 +10,13 @@ import com.codahale.metrics.Timer
 import com.daml.caching.Cache
 import com.daml.ledger.participant.state.kvutils.DamlKvutils._
 import com.daml.ledger.participant.state.kvutils.api.LedgerReader
-import com.daml.ledger.participant.state.kvutils.{Bytes, DamlStateMap, Envelope, KeyValueCommitting}
+import com.daml.ledger.participant.state.kvutils.{
+  Bytes,
+  DamlStateMap,
+  Envelope,
+  KeyValueCommitting,
+  PackageValidationMode
+}
 import com.daml.ledger.participant.state.v1.ParticipantId
 import com.daml.ledger.validator.SubmissionValidator._
 import com.daml.ledger.validator.ValidationFailed.{MissingInputState, ValidationError}
@@ -318,6 +324,7 @@ object SubmissionValidator {
       stateValueCache: Cache[Bytes, DamlStateValue] = Cache.none,
       engine: Engine,
       metrics: Metrics,
+      packageValidation: PackageValidationMode,
   ): SubmissionValidator[LogResult] = {
     createForTimeMode(
       ledgerStateAccess,
@@ -327,6 +334,7 @@ object SubmissionValidator {
       engine,
       metrics,
       inStaticTimeMode = false,
+      packageValidation
     )
   }
 
@@ -341,7 +349,12 @@ object SubmissionValidator {
   ): SubmissionValidator[LogResult] =
     new_v1_4(
       ledgerStateAccess,
-      processSubmission(new KeyValueCommitting(engine, metrics, inStaticTimeMode = false)),
+      processSubmission(
+        new KeyValueCommitting(
+          engine,
+          metrics,
+          inStaticTimeMode = false,
+          PackageValidationMode.Postcommit)),
       allocateNextLogEntryId,
       checkForMissingInputs,
       stateValueCache,
@@ -375,10 +388,12 @@ object SubmissionValidator {
       engine: Engine,
       metrics: Metrics,
       inStaticTimeMode: Boolean,
+      packageValidation: PackageValidationMode,
   ): SubmissionValidator[LogResult] =
     new SubmissionValidator(
       ledgerStateAccess,
-      processSubmission(new KeyValueCommitting(engine, metrics, inStaticTimeMode)),
+      processSubmission(
+        new KeyValueCommitting(engine, metrics, inStaticTimeMode, packageValidation)),
       allocateNextLogEntryId,
       checkForMissingInputs,
       stateValueCache,

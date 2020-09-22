@@ -46,6 +46,7 @@ da_scala_library(
         ":ledger-on-memory",
         "//daml-lf/data",
         "//daml-lf/engine",
+        "//daml-lf/transaction",
         "//language-support/scala/bindings",
         "//ledger-api/rs-grpc-bridge",
         "//ledger-api/testing-utils",

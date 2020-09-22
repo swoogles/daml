@@ -3,14 +3,17 @@
 
 package com.daml.ledger.on.memory
 
-import com.daml.ledger.participant.state.kvutils.ParticipantStateIntegrationSpecBase
+import com.daml.ledger.participant.state.kvutils.{
+  PackageValidationMode,
+  ParticipantStateIntegrationSpecBase
+}
 import com.daml.ledger.participant.state.kvutils.ParticipantStateIntegrationSpecBase.ParticipantState
 import com.daml.ledger.participant.state.kvutils.api.{
   BatchingLedgerWriterConfig,
   KeyValueParticipantState
 }
 import com.daml.ledger.participant.state.v1.{LedgerId, ParticipantId}
-import com.daml.lf.engine.Engine
+import com.daml.lf.engine.{Engine, EngineConfig}
 import com.daml.logging.LoggingContext
 import com.daml.metrics.Metrics
 import com.daml.resources.ResourceOwner
@@ -49,7 +52,7 @@ abstract class InMemoryLedgerReaderWriterIntegrationSpecBase(enableBatching: Boo
       batchingLedgerWriterConfig,
       participantId,
       metrics = metrics,
-      engine = Engine.DevEngine()
+      engine = new Engine(EngineConfig.Dev.copy(packageValidation = false)),
+      packageValidation = PackageValidationMode.NoValidation,
     ).map(readerWriter => new KeyValueParticipantState(readerWriter, readerWriter, metrics))
-
 }

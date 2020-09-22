@@ -60,6 +60,7 @@ private[memory] class InMemoryLedgerFactory(dispatcher: Dispatcher[Index], state
         dispatcher = dispatcher,
         state = state,
         engine = engine,
+        packageValidation = config.packageValidation,
       )
     else
       new InMemoryLedgerReaderWriter.BatchingOwner(
@@ -74,6 +75,7 @@ private[memory] class InMemoryLedgerFactory(dispatcher: Dispatcher[Index], state
         dispatcher = dispatcher,
         state = state,
         engine = engine,
+        packageValidation = config.packageValidation,
       )
   }
 

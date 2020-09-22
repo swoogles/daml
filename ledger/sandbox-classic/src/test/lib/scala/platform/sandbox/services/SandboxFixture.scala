@@ -20,10 +20,7 @@ trait SandboxFixture extends AbstractSandboxFixture with SuiteResource[(SandboxS
   self: Suite =>
 
   override protected def config: SandboxConfig =
-    super.config.copy(
-      seeding = None,
-      ledgerConfig = LedgerConfiguration.defaultLedgerBackedIndex,
-    )
+    super.config.copy(ledgerConfig = LedgerConfiguration.defaultLedgerBackedIndex)
 
   protected def server: SandboxServer = suiteResource.value._1
 

@@ -8,6 +8,7 @@ import java.util.concurrent.Executors
 import com.daml.daml_lf_dev.DamlLf.Archive
 import com.daml.ledger.participant.state.kvutils.Conversions.packageUploadDedupKey
 import com.daml.ledger.participant.state.kvutils.DamlKvutils._
+import com.daml.ledger.participant.state.kvutils.PackageValidationMode
 import com.daml.ledger.participant.state.kvutils.committer.Committer.{
   StepInfo,
   buildLogEntryWithOptionalRecordTime
@@ -16,13 +17,14 @@ import com.daml.lf.archive.Decode
 import com.daml.lf.data.Ref
 import com.daml.lf.data.Time.Timestamp
 import com.daml.lf.engine.Engine
-import com.daml.lf.language.Ast
 import com.daml.metrics.Metrics
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 private[kvutils] class PackageCommitter(
     engine: Engine,
+    packageValidation: PackageValidationMode,
     override protected val metrics: Metrics,
 ) extends Committer[DamlPackageUploadEntry.Builder] {
 
@@ -56,9 +58,26 @@ private[kvutils] class PackageCommitter(
     }
   }
 
-  private val validateEntry: Step = (ctx, uploadEntry) => {
-    // NOTE(JM): Currently the proper validation is unimplemented. The package is decoded and preloaded
-    // in background and we're just checking that hash and payload are set. See comment in [[preload]].
+  // Full package validation.
+  // The integrations using kvutils  hould handle long-running submissions (> 10s).
+  private[this] val fullValidateEntry: Step = { (ctx, uploadEntry) =>
+    validatePackages(uploadEntry.getSubmissionId, uploadEntry.getArchivesList.iterator().asScala) match {
+      case Right(_) =>
+        StepContinue(uploadEntry)
+      case Left(errMsg) =>
+        rejectionTraceLog(errMsg, uploadEntry)
+        reject(
+          ctx.getRecordTime,
+          uploadEntry.getSubmissionId,
+          uploadEntry.getParticipantId,
+          _.setInvalidPackage(Invalid.newBuilder.setDetails(errMsg))
+        )
+    }
+  }
+
+  private val minimalValidateEntry: Step = (ctx, uploadEntry) => {
+    // Minimal validation for integrations using kvutils that cannot handle long-running submissions.
+    // The package should be decoded and validation in background using [[enqueueFullValidation]].
     val archives = uploadEntry.getArchivesList.asScala
     val errors = if (archives.nonEmpty) {
       archives.foldLeft(List.empty[String]) { (errors, archive) =>
@@ -121,9 +140,11 @@ private[kvutils] class PackageCommitter(
     })
   }
 
-  private val enqueuePreload: Step = (_, uploadEntry) => {
-    preloadExecutor.execute(
-      preload(uploadEntry.getSubmissionId, uploadEntry.getArchivesList.asScala))
+  private[this] val enqueueFullValidation: Step = { (_, uploadEntry) =>
+    preloadExecutor.execute { () =>
+      validatePackages(uploadEntry.getSubmissionId, uploadEntry.getArchivesList.asScala.iterator)
+      ()
+    }
     StepContinue(uploadEntry)
   }
 
@@ -170,14 +191,32 @@ private[kvutils] class PackageCommitter(
   ): DamlPackageUploadEntry.Builder =
     submission.getPackageUploadEntry.toBuilder
 
-  override protected val steps: Iterable[(StepInfo, Step)] = Iterable(
-    "authorize_submission" -> authorizeSubmission,
-    "validate_entry" -> validateEntry,
-    "deduplicate_submission" -> deduplicateSubmission,
-    "filter_duplicates" -> filterDuplicates,
-    "enqueue_preload" -> enqueuePreload,
-    "build_log_entry" -> buildLogEntry
-  )
+  override protected val steps: Iterable[(StepInfo, Step)] =
+    packageValidation match {
+      case PackageValidationMode.NoValidation =>
+        Iterable(
+          "deduplicate_submission" -> deduplicateSubmission,
+          "filter_duplicates" -> filterDuplicates,
+          "build_log_entry" -> buildLogEntry
+        )
+      case PackageValidationMode.Precommit =>
+        Iterable(
+          "authorize_submission" -> authorizeSubmission,
+          "validate_entry" -> fullValidateEntry,
+          "deduplicate_submission" -> deduplicateSubmission,
+          "filter_duplicates" -> filterDuplicates,
+          "build_log_entry" -> buildLogEntry
+        )
+      case PackageValidationMode.Postcommit =>
+        Iterable(
+          "authorize_submission" -> authorizeSubmission,
+          "minimal_validate_entry" -> minimalValidateEntry,
+          "deduplicate_submission" -> deduplicateSubmission,
+          "filter_duplicates" -> filterDuplicates,
+          "enqueue_full_validation" -> enqueueFullValidation,
+          "build_log_entry" -> buildLogEntry
+        )
+    }
 
   private def reject[PartialResult](
       recordTime: Option[Timestamp],
@@ -207,18 +246,15 @@ private[kvutils] class PackageCommitter(
     )
   }
 
-  /** Preload the archives to the engine in a background thread.
-    *
-    * The background loading is a temporary workaround for handling processing of large packages. When our current
-    * integrations using kvutils can handle long-running submissions this can be removed and complete
-    * package type-checking and preloading can be done during normal processing.
-    */
-  private def preload(submissionId: String, archives: Iterable[Archive]): Runnable = { () =>
-    val ctx = metrics.daml.kvutils.committer.packageUpload.preloadTimer.time()
+  private[this] def validatePackages(
+      submissionId: String,
+      archives: Iterator[Archive],
+  ): Either[String, Unit] = {
+    val ctx = metrics.daml.kvutils.committer.packageUpload.validateTimer.time()
     def trace(msg: String): Unit = logger.trace(s"$msg, correlationId=$submissionId")
-    try {
-      val loadedPackages = engine.compiledPackages().packageIds
-      val packages: Map[Ref.PackageId, Ast.Package] =
+    val result = for {
+      packages <- Try {
+        val loadedPackages = engine.compiledPackages().packageIds
         metrics.daml.kvutils.committer.packageUpload.decodeTimer.time { () =>
           archives
             .filterNot(
@@ -231,26 +267,18 @@ private[kvutils] class PackageCommitter(
             }
             .toMap
         }
-      trace(s"Preloading engine with ${packages.size} new packages")
-      packages.foreach {
-        case (pkgId, pkg) =>
-          engine
-            .preloadPackage(pkgId, pkg)
-            .consume(
-              _ => sys.error("Unexpected request to PCS in preloadPackage"),
-              pkgId => packages.get(pkgId),
-              _ => sys.error("Unexpected request to keys in preloadPackage")
-            )
-      }
-      trace("Preload complete")
-    } catch {
-      case scala.util.control.NonFatal(err) =>
-        logger.error(
-          s"Preload exception, correlationId=$submissionId error='$err' stackTrace='${err.getStackTrace
-            .mkString(", ")}'")
-    } finally {
-      val _ = ctx.stop()
-    }
+      }.toEither.left.map(_.getMessage)
+      _ = trace(s"validating engine with ${packages.size} new packages")
+      _ <- engine.validatePackages(packages).left.map(_.msg)
+      _ = trace("validate complete")
+    } yield ()
+
+    result.left.foreach(errMsg =>
+      logger.error(s"validate exception, correlationId=$submissionId error='$errMsg'"))
+
+    ctx.close()
+
+    result
   }
 
 }

@@ -1,7 +1,8 @@
 // Copyright (c) 2020 Digital Asset (Switzerland) GmbH and/or its affiliates. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-package com.daml.ledger.participant.state.kvutils.app
+package com.daml.ledger.participant.state.kvutils
+package app
 
 import java.io.File
 import java.nio.file.Path
@@ -33,6 +34,7 @@ final case class Config[Extra](
     metricsReporter: Option[MetricsReporter],
     metricsReportingInterval: Duration,
     extra: Extra,
+    packageValidation: PackageValidationMode,
 ) {
   def withTlsConfig(modify: TlsConfiguration => TlsConfiguration): Config[Extra] =
     copy(tlsConfig = Some(modify(tlsConfig.getOrElse(TlsConfiguration.Empty))))
@@ -59,6 +61,7 @@ object Config {
       metricsReporter = None,
       metricsReportingInterval = Duration.ofSeconds(10),
       extra = extra,
+      packageValidation = PackageValidationMode.Postcommit,
     )
 
   def owner[Extra](

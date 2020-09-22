@@ -101,7 +101,7 @@ final class Metrics(val registry: MetricRegistry) {
         object packageUpload {
           private val Prefix: MetricName = committer.Prefix :+ "package_upload"
 
-          val preloadTimer: Timer = registry.timer(Prefix :+ "preload_timer")
+          val validateTimer: Timer = registry.timer(Prefix :+ "validate_timer")
           val decodeTimer: Timer = registry.timer(Prefix :+ "decode_timer")
           val accepts: Counter = registry.counter(Prefix :+ "accepts")
           val rejections: Counter = registry.counter(Prefix :+ "rejections")

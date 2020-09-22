@@ -9,13 +9,18 @@ import com.codahale.metrics.MetricRegistry
 import com.daml.caching.Cache
 import com.daml.ledger.participant.state.kvutils.DamlKvutils._
 import com.daml.ledger.participant.state.kvutils.MockitoHelpers.captor
-import com.daml.ledger.participant.state.kvutils.{Bytes, Envelope, KeyValueCommitting}
+import com.daml.ledger.participant.state.kvutils.{
+  Bytes,
+  Envelope,
+  KeyValueCommitting,
+  PackageValidationMode
+}
 import com.daml.ledger.participant.state.v1.ParticipantId
 import com.daml.ledger.validator.SubmissionValidator.RawKeyValuePairs
 import com.daml.ledger.validator.SubmissionValidatorSpec._
 import com.daml.ledger.validator.ValidationFailed.{MissingInputState, ValidationError}
 import com.daml.lf.data.Time.Timestamp
-import com.daml.lf.engine.Engine
+import com.daml.lf.engine.{Engine, EngineConfig}
 import com.daml.metrics.Metrics
 import com.github.ghik.silencer.silent
 import com.google.protobuf.{ByteString, Empty}
@@ -34,10 +39,12 @@ class SubmissionValidatorSpec extends AsyncWordSpec with Matchers with Inside {
       val mockStateOperations = mock[LedgerStateOperations[Unit]]
       when(mockStateOperations.readState(any[Seq[Bytes]]())(any[ExecutionContext]()))
         .thenReturn(Future.successful(Seq(Some(aStateValue()))))
+      val engineConfig = EngineConfig.Dev.copy(packageValidation = false)
       val instance = SubmissionValidator.create(
         new FakeStateAccess(mockStateOperations),
         metrics = new Metrics(new MetricRegistry),
-        engine = Engine.DevEngine(),
+        engine = new Engine(engineConfig),
+        packageValidation = PackageValidationMode.Precommit,
       )
       instance.validate(anEnvelope(), "aCorrelationId", newRecordTime(), aParticipantId()).map {
         inside(_) {
@@ -55,7 +62,8 @@ class SubmissionValidatorSpec extends AsyncWordSpec with Matchers with Inside {
         ledgerStateAccess = new FakeStateAccess(mockStateOperations),
         checkForMissingInputs = true,
         metrics = new Metrics(new MetricRegistry),
-        engine = Engine.DevEngine(),
+        engine = new Engine(EngineConfig.Dev.copy(packageValidation = false)),
+        packageValidation = PackageValidationMode.Precommit,
       )
       instance.validate(anEnvelope(), "aCorrelationId", newRecordTime(), aParticipantId()).map {
         inside(_) {
@@ -69,7 +77,8 @@ class SubmissionValidatorSpec extends AsyncWordSpec with Matchers with Inside {
       val instance = SubmissionValidator.create(
         new FakeStateAccess(mockStateOperations),
         metrics = new Metrics(new MetricRegistry),
-        engine = Engine.DevEngine(),
+        engine = new Engine(EngineConfig.Dev.copy(packageValidation = false)),
+        packageValidation = PackageValidationMode.Precommit,
       )
       instance
         .validate(

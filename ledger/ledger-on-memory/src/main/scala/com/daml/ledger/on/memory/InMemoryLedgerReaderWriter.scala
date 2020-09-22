@@ -17,7 +17,8 @@ import com.daml.ledger.participant.state.kvutils.{
   Bytes,
   Fingerprint,
   FingerprintPlaceholder,
-  KeyValueCommitting
+  KeyValueCommitting,
+  PackageValidationMode
 }
 import com.daml.ledger.participant.state.v1.{LedgerId, Offset, ParticipantId, SubmissionResult}
 import com.daml.ledger.validator.LedgerStateOperations.Value
@@ -80,6 +81,7 @@ object InMemoryLedgerReaderWriter {
       dispatcher: Dispatcher[Index],
       state: InMemoryState,
       engine: Engine,
+      packageValidation: PackageValidationMode,
   )(implicit materializer: Materializer)
       extends ResourceOwner[KeyValueLedger] {
     override def acquire()(
@@ -87,7 +89,11 @@ object InMemoryLedgerReaderWriter {
     ): Resource[KeyValueLedger] =
       for {
         ledgerDataExporter <- LedgerDataExporter.Owner.acquire()
-        keyValueCommitting = createKeyValueCommitting(metrics, timeProvider, engine)
+        keyValueCommitting = createKeyValueCommitting(
+          metrics,
+          timeProvider,
+          engine,
+          packageValidation)
         committer = createBatchedCommitter(
           keyValueCommitting,
           batchingLedgerWriterConfig,
@@ -122,6 +128,7 @@ object InMemoryLedgerReaderWriter {
       stateValueCache: Cache[DamlStateKey, DamlStateValue] = Cache.none,
       metrics: Metrics,
       engine: Engine,
+      packageValidation: PackageValidationMode,
   )(implicit materializer: Materializer)
       extends ResourceOwner[KeyValueLedger] {
 
@@ -141,6 +148,7 @@ object InMemoryLedgerReaderWriter {
           dispatcher,
           state,
           engine,
+          packageValidation
         ).acquire()
       } yield readerWriter
     }
@@ -157,13 +165,14 @@ object InMemoryLedgerReaderWriter {
       dispatcher: Dispatcher[Index],
       state: InMemoryState,
       engine: Engine,
+      packageValidation: PackageValidationMode,
   )(implicit materializer: Materializer)
       extends ResourceOwner[KeyValueLedger] {
     override def acquire()(
         implicit executionContext: ExecutionContext
     ): Resource[KeyValueLedger] = {
       val keyValueCommitting =
-        createKeyValueCommitting(metrics, timeProvider, engine)
+        createKeyValueCommitting(metrics, timeProvider, engine, packageValidation)
 
       val committer = createPreExecutingCommitter(
         keyValueCommitting,
@@ -278,8 +287,14 @@ object InMemoryLedgerReaderWriter {
       metrics: Metrics,
       timeProvider: TimeProvider,
       engine: Engine,
+      packageValidation: PackageValidationMode,
   ): KeyValueCommitting =
-    new KeyValueCommitting(engine, metrics, inStaticTimeMode = needStaticTimeModeFor(timeProvider))
+    new KeyValueCommitting(
+      engine,
+      metrics,
+      inStaticTimeMode = needStaticTimeModeFor(timeProvider),
+      packageValidation,
+    )
 
   private def needStaticTimeModeFor(timeProvider: TimeProvider): Boolean =
     timeProvider != TimeProvider.UTC

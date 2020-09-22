@@ -7,6 +7,7 @@ import java.time.Duration
 
 import akka.stream.Materializer
 import com.daml.caching
+import com.daml.ledger.participant.state.kvutils.PackageValidationMode
 import com.daml.ledger.participant.state.kvutils.api.KeyValueParticipantState
 import com.daml.ledger.participant.state.kvutils.app.{
   Config,
@@ -42,7 +43,10 @@ object SqlLedgerFactory extends LedgerFactory[ReadWriteService, ExtraConfig] {
   }
 
   override def manipulateConfig(config: Config[ExtraConfig]): Config[ExtraConfig] =
-    config.copy(participants = config.participants.map(_.copy(allowExistingSchemaForIndex = true)))
+    config.copy(
+      participants = config.participants.map(_.copy(allowExistingSchemaForIndex = true)),
+      packageValidation = PackageValidationMode.NoValidation,
+    )
 
   override def readWriteServiceOwner(
       config: Config[ExtraConfig],

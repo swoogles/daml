@@ -34,10 +34,14 @@ import scala.collection.JavaConverters._
 class KeyValueCommitting private[daml] (
     engine: Engine,
     metrics: Metrics,
-    inStaticTimeMode: Boolean) {
+    inStaticTimeMode: Boolean,
+    packageValidation: PackageValidationMode,
+) {
   private val logger = LoggerFactory.getLogger(this.getClass)
 
-  def this(engine: Engine, metrics: Metrics) = this(engine, metrics, false)
+  // RH: what is the good default value for packageValidation
+  def this(engine: Engine, metrics: Metrics) =
+    this(engine, metrics, false, PackageValidationMode.Postcommit)
 
   /** Processes a DAML submission, given the allocated log entry id, the submission and its resolved inputs.
     * Produces the log entry to be committed, and DAML state updates.
@@ -80,7 +84,7 @@ class KeyValueCommitting private[daml] (
     metrics.daml.kvutils.committer.last.lastParticipantIdGauge.updateValue(participantId)
     val ctx = metrics.daml.kvutils.committer.runTimer.time()
     try {
-      val committer = createCommitter(engine, defaultConfig, submission)
+      val committer = createCommitter(engine, defaultConfig, submission, packageValidation)
       val (logEntry, outputState) = committer.run(
         Some(recordTime),
         submission,
@@ -111,7 +115,7 @@ class KeyValueCommitting private[daml] (
       participantId: ParticipantId,
       inputState: DamlStateMap,
   ): PreExecutionResult =
-    createCommitter(engine, defaultConfig, submission).runWithPreExecution(
+    createCommitter(engine, defaultConfig, submission, packageValidation).runWithPreExecution(
       submission,
       participantId,
       inputState,
@@ -121,10 +125,11 @@ class KeyValueCommitting private[daml] (
       engine: Engine,
       defaultConfig: Configuration,
       submission: DamlSubmission,
+      packageValidation: PackageValidationMode,
   ): SubmissionExecutor =
     submission.getPayloadCase match {
       case DamlSubmission.PayloadCase.PACKAGE_UPLOAD_ENTRY =>
-        new PackageCommitter(engine, metrics)
+        new PackageCommitter(engine, packageValidation, metrics)
 
       case DamlSubmission.PayloadCase.PARTY_ALLOCATION_ENTRY =>
         new PartyAllocationCommitter(metrics)
