@@ -48,7 +48,7 @@ Consistency consists of two parts:
 To define this precisely, notions of "before" and "after" are needed.
 These are given by putting all actions in a sequence. Technically, the
 sequence is obtained by a pre-order traversal of the ledger's actions,
-noting that these actions form an (ordered) forest. Intuitively, it is obtained
+noting that these actions form an (ordered) forest. It is obtained
 by always picking parent actions before their proper subactions, and otherwise
 always picking the actions on the left before the actions on the right. The image
 below depicts the resulting order on the paint offer example:
@@ -339,7 +339,7 @@ Alice's money <painter-stealing-ious>`. The first of those is visualized below.
    :align: center
    :width: 100%
 
-The reason why the example is intuitively impermissible is that
+The reason why the example is impermissible is that
 the `PaintAgree` contract is supposed to express that the painter has an
 obligation to paint Alice's house, but he never agreed to that obligation.
 On paper contracts, obligations are expressed in the body of the contract,
@@ -406,7 +406,7 @@ Authorization Rules
 ```````````````````
 
 Signatories allow one to precisely state that the painter has an obligation.
-The imposed obligation is intuitively invalid because the painter did not
+The imposed obligation is invalid because the painter did not
 agree to this obligation. In other words, the painter did not *authorize*
 the creation of the obligation.
 
@@ -486,8 +486,8 @@ creation of the new IOU. Since the bank is the sole signatory of this
 IOU, this action is also permissible. Thus, the entire third commit
 is also well-authorized, and then so is the ledger.
 
-Similarly, the intuitively problematic examples
-are prohibitied by our authorization criterion. In the
+Similarly, the problematic examples
+are prohibited by our authorization criterion. In the
 first example, Alice forced the painter to paint her house. The
 authorizations for the example are shown below.
 

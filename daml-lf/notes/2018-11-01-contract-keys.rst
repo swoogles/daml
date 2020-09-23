@@ -273,7 +273,7 @@ Validating transactions
 * Marcin: What happens when a non-maintainer runs the transaction? Do we
   just trust that the lookup result stored in the transaction is right?
 
-  Intuitively this makes sense because we know that for the transaction
+  This makes sense because we know that for the transaction
   to go through we must have it authorized by maintainers. (Simon agrees)
 
 * Similarly, what happens when a ``fetchByKey`` is run by somebody

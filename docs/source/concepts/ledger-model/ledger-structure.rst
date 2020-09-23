@@ -101,7 +101,7 @@ conventions that:
 #. double arrows connect exercises to their consequences, if any.
 #. the consequences are ordered left-to-right.
 #. to aid intuitions, exercise actions are annotated with suggestive names
-   like "accept" or "transfer". Intuitively, these correspond to names of
+   like "accept" or "transfer". These correspond to names of
    DAML choices, but they have no semantic meaning.
 
 An alternative shorthand notation, shown below uses the abbreviations **Exe** and **ExeN** for exercises, and omits the
@@ -136,12 +136,12 @@ In the paint offer example, the underlying type of contracts consists
 of three sorts of contracts:
 
 PaintOffer houseOwner painter obligor refNo
-  Intuitively an offer (with a reference number) by
+  An offer (with a reference number) by
   which the painter proposes to the house owner to paint her house, in
   exchange for a single IOU token issued by the specified obligor.
 
 PaintAgree painter houseOwner refNo
-  Intuitively a contract whereby
+  A contract whereby
   the painter agrees to paint the owner's house
 
 Iou obligor owner
@@ -241,7 +241,7 @@ address the first question: "what do changes and ledgers look
 like?". To answer the next question, "who can request which changes",
 a precise definition is needed of which ledgers are permissible,
 and which are not. For example, the above
-paint offer ledger is intuitively permissible, while all of the
+paint offer ledger is permissible, while all of the
 following ledgers are not.
 
 .. figure:: ./images/double-spend.svg
@@ -267,7 +267,7 @@ following ledgers are not.
    :name: painter-stealing-ious
 
    Painter stealing Alice's IOU. Note that the ledger would be
-   intuitively permissible if it was Alice performing the last commit.
+   permissible if it was Alice performing the last commit.
 
 .. figure:: ./images/failed-key-assertion.svg
    :align: center

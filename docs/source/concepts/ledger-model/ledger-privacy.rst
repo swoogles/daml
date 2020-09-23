@@ -22,7 +22,7 @@ To make this more precise, a stakeholder concept is needed.
 Contract Observers and Stakeholders
 +++++++++++++++++++++++++++++++++++
 
-Intuitively, as signatories are bound by a contract, they have a stake in it.
+As signatories are bound by a contract, they have a stake in it.
 Actors might not be bound by the contract, but they still have a stake in their actions, as these are the actor's rights.
 Generalizing this, **observers** are parties who might not be bound by the contract, but still have the right to see the contract.
 For example, Alice should be an observer of the `PaintOffer`, such that she is made aware that the offer exists.
@@ -50,7 +50,7 @@ Stakeholders should see changes to contracts they hold a stake in, but that does
 mean that they have to see the entirety of any transaction that their contract is
 involved in. This is made precise through *projections* of a transaction,
 which define the view that each party gets on a transaction.
-Intuitively, given a transaction within a commit, a party will see
+Given a transaction within a commit, a party will see
 only the subtransaction consisting of all actions on contracts where the party
 is a stakeholder. Thus, privacy is obtained on the subtransaction level.
 

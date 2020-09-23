@@ -21,7 +21,7 @@ possible actions from an infinite set is infeasible, a more
 compact way of representing models is needed.
 
 DAML provides exactly that: a compact representation of a contract model.
-Intuitively, the allowed actions are:
+The allowed actions are:
 
 #. **Create** actions on all instances of templates such that
    the template arguments satisfy the `ensure` clause of the

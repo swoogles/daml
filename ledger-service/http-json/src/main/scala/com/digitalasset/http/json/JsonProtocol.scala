@@ -53,7 +53,7 @@ object JsonProtocol extends DefaultJsonProtocol with ExtraFormats {
   implicit def NonEmptyListWriter[A: JsonWriter]: JsonWriter[NonEmptyList[A]] =
     nela => JsArray(nela.map(_.toJson).list.toVector)
 
-  /** This intuitively pointless extra type is here to give it specificity so
+  /** This pointless extra type is here to give it specificity so
     *  this instance will beat CollectionFormats#listFormat. You would normally
     *  achieve the conflict resolution by putting this instance in a parent of
     *  [[https://javadoc.io/static/io.spray/spray-json_2.12/1.3.5/spray/json/CollectionFormats.html CollectionFormats]],
